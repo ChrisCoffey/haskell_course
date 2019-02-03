@@ -93,7 +93,8 @@ instance Applicative Optional where
     -> Optional a
     -> Optional b
   _ <*> Empty = Empty
-  f <*> (Full a) = Full $ f a
+  Empty <*> _ = Empty
+  (Full f) <*> (Full a) = Full $ f a
 
 -- | Insert into a constant function.
 --
@@ -268,7 +269,7 @@ lift1 = (<$>)
   f a
   -> f b
   -> f b
-fa *> fb = error "foo"
+(*>) = lift2 (flip const)
 
 
 -- | Apply, discarding the value of the second argument.
@@ -294,8 +295,7 @@ fa *> fb = error "foo"
   f b
   -> f a
   -> f b
-(<*) =
-  error "todo: Course.Applicative#(<*)"
+(<*) = lift2 const
 
 -- | Sequences a list of structures to a structure of list.
 --
@@ -318,7 +318,8 @@ sequence ::
   List (f a)
   -> f (List a)
 sequence =
-  error "todo: Course.Applicative#sequence"
+    foldRight (lift2 (:.)) (pure Nil)
+
 
 -- | Replicate an effect a given number of times.
 --
@@ -343,8 +344,8 @@ replicateA ::
   Int
   -> f a
   -> f (List a)
-replicateA =
-  error "todo: Course.Applicative#replicateA"
+replicateA n action =
+    sequence $ replicate n action
 
 -- | Filter a list with a predicate that produces an effect.
 --
@@ -371,8 +372,16 @@ filtering ::
   (a -> f Bool)
   -> List a
   -> f (List a)
-filtering =
-  error "todo: Course.Applicative#filtering"
+filtering predF =
+    foldRight keep (pure Nil)
+    where
+        paired a = (\b -> (b, a)) <$> predF a
+        keep raw acc = lift2 (\ (b,a) xs -> if b
+                                             then a:.xs
+                                             else xs)
+                             (paired raw)
+                             acc
+
 
 -----------------------
 -- SUPPORT LIBRARIES --
