@@ -22,7 +22,8 @@ import qualified Prelude as P
 -- >>> import qualified Prelude as P(fmap)
 -- >>> instance Arbitrary a => Arbitrary (List a) where arbitrary = P.fmap listh arbitrary
 
--- | A `StateT` is a function from a state value `s` to a functor f of (a produced value `a`, and a resulting state `s`).
+-- | A `StateT` is a function from a state value `s` to a functor f of (a produced value `a`,
+-- and a resulting state `s`).
 newtype StateT s f a =
   StateT {
     runStateT ::
@@ -39,8 +40,8 @@ instance Functor f => Functor (StateT s f) where
     (a -> b)
     -> StateT s f a
     -> StateT s f b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (StateT s f)"
+  f <$> (StateT act) =
+      StateT $ \s -> (\(a,s') -> (f a, s')) <$> act s
 
 -- | Implement the `Applicative` instance for @StateT s f@ given a @Monad f@.
 --
@@ -59,18 +60,19 @@ instance Functor f => Functor (StateT s f) where
 --
 -- >>> runStateT (StateT (\s -> ((+2), s P.++ [1]) :. ((+3), s P.++ [1]) :. Nil) <*> (StateT (\s -> (2, s P.++ [2]) :. Nil))) [0]
 -- [(4,[0,1,2]),(5,[0,1,2])]
-instance Monad f => Applicative (StateT s f) where
+instance Monad m => Applicative (StateT s m) where
   pure ::
     a
-    -> StateT s f a
-  pure =
-    error "todo: Course.StateT pure#instance (StateT s f)"
+    -> StateT s m a
+  pure a = StateT $ \s -> pure (a, s)
   (<*>) ::
-    StateT s f (a -> b)
-    -> StateT s f a
-    -> StateT s f b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (StateT s f)"
+   StateT s m (a -> b)
+    -> StateT s m a
+    -> StateT s m b
+  (StateT mf) <*> (StateT ma) = StateT $ \s -> do
+    (f,s') <- mf s
+    (a,s'') <- ma s'
+    pure (f a, s'')
 
 -- | Implement the `Monad` instance for @StateT s f@ given a @Monad f@.
 -- Make sure the state value is passed through in `bind`.
@@ -85,8 +87,11 @@ instance Monad f => Monad (StateT s f) where
     (a -> StateT s f b)
     -> StateT s f a
     -> StateT s f b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (StateT s f)"
+  fa =<< (StateT ma) =
+    StateT $ \s -> do
+        (a,s') <- ma s
+        (b, s'') <- (runStateT $ fa a) s'
+        pure (b, s'')
 
 -- | A `State'` is `StateT` specialised to the `ExactlyOne` functor.
 type State' s a =

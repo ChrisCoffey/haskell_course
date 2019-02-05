@@ -212,4 +212,4 @@ distinct ls = eval (filtering search ls) S.empty
 isHappy ::
   Integer
   -> Bool
-isHappy n =
+isHappy n = error "todo"
