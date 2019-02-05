@@ -107,7 +107,6 @@ instance Applicative (State s) where
         (a, s'') = action s'
         in (fa a, s'')
 
-
 -- | Implement the `Bind` instance for `State s`.
 --
 -- >>> runState ((const $ put 2) =<< put 1) 0
@@ -141,12 +140,15 @@ instance Monad (State s) where
 -- >>> let p x = (\s -> (const $ pure (x == 'i')) =<< put (1+s)) =<< get in runState (findM p $ listh ['a'..'h']) 0
 -- (Empty,8)
 findM ::
-  Monad f =>
-  (a -> f Bool)
+  Monad m =>
+  (a -> m Bool)
   -> List a
-  -> f (Optional a)
-findM =
-  error "todo: Course.State#findM"
+  -> m (Optional a)
+findM _ Nil = pure Empty
+findM f (a :. rest) = step =<< f a
+    where
+        step True = pure (Full a)
+        step False = findM f rest
 
 -- | Find the first element in a `List` that repeats.
 -- It is possible that no element repeats, hence an `Optional` result.
@@ -159,8 +161,13 @@ firstRepeat ::
   Ord a =>
   List a
   -> Optional a
-firstRepeat =
-  error "todo: Course.State#firstRepeat"
+firstRepeat ls = eval (findM search ls) S.empty
+    where
+        search a = do
+            seen <- get
+            put $ S.insert a seen
+            pure $ a `S.member` seen
+
 
 -- | Remove all duplicate elements in a `List`.
 -- /Tip:/ Use `filtering` and `State` with a @Data.Set#Set@.
@@ -172,8 +179,14 @@ distinct ::
   Ord a =>
   List a
   -> List a
-distinct =
-  error "todo: Course.State#distinct"
+distinct ls = eval (filtering search ls) S.empty
+    where
+        search a = do
+            seen <- get
+            put $ S.insert a seen
+            pure . not $ a `S.member` seen
+
+
 
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
@@ -199,5 +212,4 @@ distinct =
 isHappy ::
   Integer
   -> Bool
-isHappy =
-  error "todo: Course.State#isHappy"
+isHappy n =
