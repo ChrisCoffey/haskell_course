@@ -197,8 +197,7 @@ distinct' ::
   (Ord a, Num a) =>
   List a
   -> List a
-distinct' =
-  error "todo: Course.StateT#distinct'"
+distinct' = distinct
 
 -- | Remove all duplicate elements in a `List`.
 -- However, if you see a value greater than `100` in the list,
@@ -215,8 +214,18 @@ distinctF ::
   (Ord a, Num a) =>
   List a
   -> Optional (List a)
-distinctF =
-  error "todo: Course.StateT#distinctF"
+distinctF ls = evalT (filtering search ls) S.empty
+    where
+        search :: (Ord a, Num a) => a -> StateT (S.Set a) Optional Bool
+        search n
+            | n > 100 = StateT $ const Empty
+            | otherwise = do
+                seen <- getT
+                if n `S.member` seen
+                then pure False
+                else do
+                    putT $ S.insert n seen
+                    pure True
 
 -- | An `OptionalT` is a functor of an `Optional` value.
 data OptionalT f a =
@@ -230,12 +239,10 @@ data OptionalT f a =
 -- >>> runOptionalT $ (+1) <$> OptionalT (Full 1 :. Empty :. Nil)
 -- [Full 2,Empty]
 instance Functor f => Functor (OptionalT f) where
-  (<$>) ::
-    (a -> b)
-    -> OptionalT f a
+  f <$> opt = OptionalT $ (f <$>) <$> runOptionalT opt
+
+
     -> OptionalT f b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (OptionalT f)"
 
 -- | Implement the `Applicative` instance for `OptionalT f` given a Monad f.
 --
@@ -262,18 +269,16 @@ instance Functor f => Functor (OptionalT f) where
 -- >>> runOptionalT $ OptionalT (Full (+1) :. Full (+2) :. Nil) <*> OptionalT (Full 1 :. Empty :. Nil)
 -- [Full 2,Empty,Full 3,Empty]
 instance Monad f => Applicative (OptionalT f) where
-  pure ::
-    a
-    -> OptionalT f a
-  pure =
-    error "todo: Course.StateT pure#instance (OptionalT f)"
+  pure a = OptionalT $ pure (Full a)
+
+  (OptionalT f) <*> (OptionalT a) =
+        where
+            fu = f
 
   (<*>) ::
     OptionalT f (a -> b)
     -> OptionalT f a
     -> OptionalT f b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (OptionalT f)"
 
 -- | Implement the `Monad` instance for `OptionalT f` given a Monad f.
 --
