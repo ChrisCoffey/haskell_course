@@ -23,9 +23,10 @@ instance (Applicative f, Applicative g) =>
 -- Implement the pure function for an Applicative instance for Compose
   pure = Compose . (pure . pure)
 -- Implement the (<*>) function for an Applicative instance for Compose
-  (Compose f) <*> (Compose ds) =  undefined
+  (Compose f) <*> (Compose ds) =
+    Compose (lift2 (<*>) f ds)
 
 instance (Monad m, Monad n) =>
   Monad (Compose m n) where
 -- Implement the (=<<) function for a Monad instance for Compose
-  f =<< ma = join $ f <$> ma
+  f =<< ma = undefined
