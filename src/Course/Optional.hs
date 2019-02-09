@@ -65,8 +65,7 @@ bindOptional _ _ = Empty
 -- | Try the first optional for a value. If it has a value, use it; otherwise,
 -- use the second value.
 --
--- >>> Full 8 <+> Empty
--- Full 8
+-- >>> Full 8 <+> Empty Full 8
 --
 -- >>> Full 8 <+> Full 9
 -- Full 8
@@ -96,8 +95,8 @@ optional ::
   -> b
   -> Optional a
   -> b
-optional =
-  error "todo: Course.Optional#optional"
+optional f b Empty = b
+optional f _ (Full a) = f a
 
 applyOptional :: Optional (a -> b) -> Optional a -> Optional b
 applyOptional f a = bindOptional (\f' -> mapOptional f' a) f

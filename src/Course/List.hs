@@ -291,7 +291,8 @@ find pred (a :. rest)
 lengthGT4 ::
   List a
   -> Bool
-lengthGT4 (_ :. _ :. _ :. _ :. _) = True
+lengthGT4 (_ :. _ :. _ :. _ :. Nil ) = False
+lengthGT4 (_ :. _ :. _ :. _ :. _ ) = True
 lengthGT4 _ = False
 
 -- | Reverse a list.

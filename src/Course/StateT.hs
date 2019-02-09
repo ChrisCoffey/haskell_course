@@ -266,19 +266,13 @@ instance Functor f => Functor (OptionalT f) where
 -- >>> runOptionalT $ OptionalT (Full (+1) :. Full (+2) :. Nil) <*> OptionalT (Full 1 :. Empty :. Nil)
 -- [Full 2,Empty,Full 3,Empty]
 instance Monad f => Applicative (OptionalT f) where
-  pure a = OptionalT $ pure (Full a)
+  pure a = OptionalT . pure $ Full a
 
-  (OptionalT f) <*> (OptionalT a) = OptionalT $ f'  <*> a
-    where
-        f' = liftOptional <$> f
-        liftOptional Empty = \Empty -> Empty
-        liftOptional (Full g) = \x -> g <$> x
-
-  (<*>) ::
-    OptionalT f (a -> b)
-    -> OptionalT f a
-    -> OptionalT f b
-
+  (OptionalT f) <*> optA = OptionalT $ (\funcOpt ->
+        case funcOpt of
+            Empty -> pure Empty
+            Full func -> runOptionalT $ func <$> optA
+        ) =<< f
 -- | Implement the `Monad` instance for `OptionalT f` given a Monad f.
 --
 -- >>> runOptionalT $ (\a -> OptionalT (Full (a+1) :. Full (a+2) :. Nil)) =<< OptionalT (Full 1 :. Empty :. Nil)
