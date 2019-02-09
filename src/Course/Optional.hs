@@ -80,8 +80,9 @@ bindOptional _ _ = Empty
   Optional a
   -> Optional a
   -> Optional a
-(<+>) (Full l) _ = Full l
-  error "todo: Course.Optional#(<+>)"
+(Full l) <+>  _ = Full l
+_ <+> (Full l) = Full l
+_ <+> _ = Empty
 
 -- | Replaces the Full and Empty constructors in an optional.
 --

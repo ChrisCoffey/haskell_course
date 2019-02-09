@@ -241,9 +241,6 @@ data OptionalT f a =
 instance Functor f => Functor (OptionalT f) where
   f <$> opt = OptionalT $ (f <$>) <$> runOptionalT opt
 
-
-    -> OptionalT f b
-
 -- | Implement the `Applicative` instance for `OptionalT f` given a Monad f.
 --
 -- /Tip:/ Use `onFull` to help implement (<*>).
@@ -303,9 +300,6 @@ data Logger l a =
 -- Logger [1,2] 6
 instance Functor (Logger l) where
   f <$> (Logger ls a) = Logger ls $ f a
-    (a -> b)
-    -> Logger l a
-    -> Logger l b
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -318,11 +312,6 @@ instance Applicative (Logger l) where
   pure = Logger Nil
   (Logger as f) <*> (Logger bs a) =
     Logger (as++bs) (f a)
-
-  (<*>) ::
-    Logger l (a -> b)
-    -> Logger l a
-    -> Logger l b
 
 -- | Implement the `Monad` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
