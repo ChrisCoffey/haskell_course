@@ -271,9 +271,11 @@ instance Functor f => Functor (OptionalT f) where
 instance Monad f => Applicative (OptionalT f) where
   pure a = OptionalT $ pure (Full a)
 
-  (OptionalT f) <*> (OptionalT a) =
-        where
-            fu = f
+  (OptionalT f) <*> (OptionalT a) = OptionalT $ f'  <*> a
+    where
+        f' = liftOptional <$> f
+        liftOptional Empty = \Empty -> Empty
+        liftOptional (Full g) = \x -> g <$> x
 
   (<*>) ::
     OptionalT f (a -> b)
@@ -285,12 +287,10 @@ instance Monad f => Applicative (OptionalT f) where
 -- >>> runOptionalT $ (\a -> OptionalT (Full (a+1) :. Full (a+2) :. Nil)) =<< OptionalT (Full 1 :. Empty :. Nil)
 -- [Full 2,Full 3,Empty]
 instance Monad f => Monad (OptionalT f) where
-  (=<<) ::
-    (a -> OptionalT f b)
-    -> OptionalT f a
-    -> OptionalT f b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (OptionalT f)"
+  f =<< opt = OptionalT $ liftOptional =<< runOptionalT opt
+    where
+        liftOptional Empty = pure Empty
+        liftOptional (Full a) = runOptionalT $ f a
 
 -- | A `Logger` is a pair of a list of log values (`[l]`) and an arbitrary value (`a`).
 data Logger l a =
@@ -302,12 +302,10 @@ data Logger l a =
 -- >>> (+3) <$> Logger (listh [1,2]) 3
 -- Logger [1,2] 6
 instance Functor (Logger l) where
-  (<$>) ::
+  f <$> (Logger ls a) = Logger ls $ f a
     (a -> b)
     -> Logger l a
     -> Logger l b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (Logger l)"
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -317,18 +315,14 @@ instance Functor (Logger l) where
 -- >>> Logger (listh [1,2]) (+7) <*> Logger (listh [3,4]) 3
 -- Logger [1,2,3,4] 10
 instance Applicative (Logger l) where
-  pure ::
-    a
-    -> Logger l a
-  pure =
-    error "todo: Course.StateT pure#instance (Logger l)"
+  pure = Logger Nil
+  (Logger as f) <*> (Logger bs a) =
+    Logger (as++bs) (f a)
 
   (<*>) ::
     Logger l (a -> b)
     -> Logger l a
     -> Logger l b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (Logger l)"
 
 -- | Implement the `Monad` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
@@ -336,12 +330,10 @@ instance Applicative (Logger l) where
 -- >>> (\a -> Logger (listh [4,5]) (a+3)) =<< Logger (listh [1,2]) 3
 -- Logger [1,2,4,5] 6
 instance Monad (Logger l) where
-  (=<<) ::
-    (a -> Logger l b)
-    -> Logger l a
-    -> Logger l b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (Logger l)"
+  f =<< (Logger ls a) = let
+    (Logger gs b) = f a
+    in Logger (ls++gs) b
+
 
 -- | A utility function for producing a `Logger` with one log value.
 --
@@ -351,8 +343,7 @@ log1 ::
   l
   -> a
   -> Logger l a
-log1 =
-  error "todo: Course.StateT#log1"
+log1 l = Logger (l :. Nil)
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
@@ -372,17 +363,34 @@ distinctG ::
   (Integral a, Show a) =>
   List a
   -> Logger Chars (Optional (List a))
-distinctG =
-  error "todo: Course.StateT#distinctG"
+distinctG xs =
+     runOptionalT $ evalT (filtering search xs) S.empty
+    where
+        search :: (Integral a, Show a) => a -> StateT (S.Set a)
+                                                      (OptionalT (Logger Chars))
+                                                      Bool
+        search a
+            | a > 100 = do
+                lift . OptionalT $ log1 ( "aborting > 100: " ++ (listh $show a)) Empty
+                pure False
+            | even a = do
+                lift . lift $ log1 ("even number: " ++ (listh $ show a)) a
+                check
+            | otherwise = check
+            where
+                check =  do
+                    seen <- getT
+                    if a `S.member` seen
+                    then pure False
+                    else do
+                        putT (S.insert a seen)
+                        pure True
 
-onFull ::
-  Applicative f =>
-  (t -> f (Optional a))
-  -> Optional t
-  -> f (Optional a)
-onFull g o =
-  case o of
-    Empty ->
-      pure Empty
-    Full a ->
-      g a
+class MonadTrans t where
+    lift :: Monad m => m a -> t m a
+
+instance MonadTrans (StateT s) where
+    lift ma = StateT $ \s -> (\a -> (a,s)) <$> ma
+
+instance MonadTrans OptionalT where
+    lift ma = OptionalT $ Full <$> ma
